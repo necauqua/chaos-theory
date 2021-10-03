@@ -60,4 +60,5 @@ features = [
     'CanvasRenderingContext2d',
     'TextMetrics',
     'CssStyleDeclaration',
+    'Performance'
 ]

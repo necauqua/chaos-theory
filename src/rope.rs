@@ -1,15 +1,15 @@
-use nalgebra::Vector2;
 use ld_game_engine::util::Mut;
+use crate::Pos;
 
 #[derive(Debug, Copy, Clone)]
 pub struct Point {
-    pos: Vector2<f64>,
-    prev_pos: Vector2<f64>,
+    pos: Pos,
+    prev_pos: Pos,
     pub locked: bool,
 }
 
 impl Point {
-    pub fn new(pos: Vector2<f64>) -> Self {
+    pub fn new(pos: Pos) -> Self {
         Self {
             pos,
             prev_pos: pos,
@@ -17,80 +17,117 @@ impl Point {
         }
     }
 
-    pub fn locked(pos: Vector2<f64>) -> Self {
+    pub fn locked(pos: Pos) -> Self {
         let mut p = Self::new(pos);
         p.locked = true;
         p
     }
 
-    pub fn pos(&self) -> Vector2<f64> {
+    pub fn pos(&self) -> Pos {
         self.pos
     }
 
-    fn step(&mut self, gravity: Vector2<f64>) {
+    fn step(&mut self, accel_with_delta_time_sq: Pos) {
         if self.locked {
             return
         }
         let prev_pos = self.pos;
-        self.pos += self.pos - self.prev_pos;
-        self.pos += gravity;
+        self.pos += (self.pos - self.prev_pos) + accel_with_delta_time_sq;
         self.prev_pos = prev_pos;
     }
 }
 
 #[derive(Debug)]
-pub struct Stick {
+pub struct Constraint {
     pub point_a: Mut<Point>,
     pub point_b: Mut<Point>,
     pub length: f64,
 }
 
-impl Rope {
-    pub fn new(root: Vector2<f64>) -> Rope {
-        Rope {
-            root,
-            sticks: Vec::new()
+impl Clone for Constraint {
+    fn clone(&self) -> Self {
+        Constraint {
+            point_a: Mut::new(*self.point_a.borrow()),
+            point_b: Mut::new(*self.point_b.borrow()),
+            length: self.length
         }
     }
+}
 
-    pub fn add(&mut self, point: Vector2<f64>) {
-        let point_a = self.tail().unwrap_or_else(|| Mut::new(Point::locked(self.root)));
-        let length = (point - point_a.borrow().pos).magnitude();
-        self.sticks.push(Stick {
-            point_a,
-            point_b: Mut::new(Point::new(point)),
-            length
-        })
-    }
+impl Constraint {
 
-    pub fn tail(&self) -> Option<Mut<Point>> {
-        self.sticks.last().map(|s| s.point_b.clone())
-    }
-
-    pub fn simulate(&mut self, gravity: Vector2<f64>, num_iterations: u32) {
-        for stick in &mut self.sticks {
-            stick.point_a.borrow_mut().step(gravity);
-            stick.point_b.borrow_mut().step(gravity);
+    fn relax(&mut self) {
+        let mut point_a = self.point_a.borrow_mut();
+        let mut point_b = self.point_b.borrow_mut();
+        let diff = point_a.pos - point_b.pos;
+        let direction = diff.normalize();
+        let delta_d = diff.magnitude() - self.length;
+        if !point_a.locked {
+            point_a.pos -= direction * delta_d / 2.0
         }
-        for _ in 0..num_iterations {
-            for stick in &mut self.sticks {
-                let mut point_a = stick.point_a.borrow_mut();
-                let mut point_b = stick.point_b.borrow_mut();
-                let center = (point_a.pos + point_b.pos) / 2.0;
-                let direction = (point_a.pos - point_b.pos).normalize();
-                if !point_a.locked {
-                    point_a.pos = center + direction * stick.length / 2.0
-                }
-                if !point_b.locked {
-                    point_b.pos = center - direction * stick.length / 2.0
-                }
-            }
+        if !point_b.locked {
+            point_b.pos += direction * delta_d / 2.0
         }
     }
 }
 
 #[derive(Debug)]
 pub struct Rope {
-    pub root: Vector2<f64>,
-    pub sticks: Vec<Stick>,
+    pub root: Pos,
+    pub constraints: Vec<Constraint>,
+    pub gravity: Pos,
+}
+
+impl Rope {
+    pub fn new(root: Pos, gravity: Pos) -> Rope {
+        Rope {
+            root,
+            constraints: Vec::new(),
+            gravity,
+        }
+    }
+
+    pub fn add(&mut self, point: Pos) {
+        let point_a = self.constraints.last().map(|s| s.point_b.clone()).unwrap_or_else(|| Mut::new(Point::locked(self.root)));
+        let length = (point - point_a.borrow().pos).magnitude();
+        let point_b = Mut::new(Point::new(point));
+        self.constraints.push(Constraint {
+            point_a,
+            point_b,
+            length
+        })
+    }
+
+    pub fn tail(&self) -> Pos {
+        self.constraints.last().map(|s| s.point_b.borrow().pos).unwrap_or(self.root)
+    }
+
+    pub fn jiggle(&mut self) {
+        for constraint in &self.constraints {
+            let x = js_sys::Math::random() - 0.5;
+            let y = js_sys::Math::random() - 0.5;
+            constraint.point_b.borrow_mut().pos += Pos::from([x, y]);
+        }
+    }
+
+    pub fn simulate(&mut self, delta_time: f64, num_iterations: u32) {
+        for constraint in &mut self.constraints {
+            let accel = self.gravity * (delta_time * delta_time);
+            constraint.point_a.borrow_mut().step(accel);
+            constraint.point_b.borrow_mut().step(accel);
+        }
+        for _ in 0..num_iterations {
+            self.constraints.iter_mut().for_each(Constraint::relax);
+        }
+    }
+}
+
+impl Clone for Rope {
+    fn clone(&self) -> Self {
+        let mut new_rope = Rope::new(self.root, self.gravity);
+        for constraint in &self.constraints {
+            new_rope.add(constraint.point_b.borrow().pos);
+        }
+        new_rope
+    }
 }
