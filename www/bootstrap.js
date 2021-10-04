@@ -1,4 +1,3 @@
-
 /* explicitly global to be easier to call from wasm */
 window._game_error = (text) => {
     let p = document.createElement('p');
@@ -8,10 +7,10 @@ window._game_error = (text) => {
     p.innerText = 'Error:\n' + text;
     document.body.textContent = '';
     document.body.appendChild(p);
-}
+};
 
 import('./index.js')
-  .catch(e => {
-      _game_error(e.toString())
-      console.error(e);
-  });
+    .catch(e => {
+        _game_error(e.toString());
+        console.error(e);
+    });

@@ -1,24 +1,32 @@
-use nalgebra::Vector2;
+use std::borrow::Cow;
+
 use wasm_bindgen::prelude::*;
+
 use ld_game_engine::{Game, GameRun, GameState, Resources, util::setup_panic_hook};
+use ld_game_engine::ui::Button;
+
 use crate::states::main_game::{Level, MainGame};
 
-pub mod states;
 pub mod rope;
-
-pub type Pos = Vector2<f64>;
+pub mod states;
 
 #[derive(Debug)]
-pub struct ChaosTheory {
+pub struct ChaosTheory {}
 
+impl ChaosTheory {
+    pub fn button(&mut self, text: impl Into<Cow<'static, str>>) -> Button {
+        Button::new(text.into(), "#661ebd")
+            .with_size(1.5)
+            .with_hover_color("#8024f0")
+    }
 }
 
 impl Game for ChaosTheory {
     type Storage = ();
 
     fn load(_resources: Resources) -> (Self, Box<dyn GameState<Self>>) {
-        let global = ChaosTheory {};
-        let initial_state = Box::new(MainGame::new(Level::test()));
+        let mut global = ChaosTheory {};
+        let initial_state = Box::new(MainGame::new(Level::test(), &mut global));
         (global, initial_state)
     }
 }
