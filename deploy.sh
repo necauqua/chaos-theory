@@ -17,9 +17,5 @@ scp $NAME.zip necauqua.dev:.
 
 rm $NAME.zip
 
-# shellcheck disable=SC2087 # we want that
-ssh necauqua.dev << END
-  rm -rf $NAME || exit 1
-  unzip $NAME.zip -d $NAME
-  rm $NAME.zip
-END
+# shellcheck disable=SC2029 # we want that
+ssh necauqua.dev "bash -c 'rm -rf $NAME || exit 1; unzip $NAME.zip -d $NAME; rm -f $NAME.zip'"

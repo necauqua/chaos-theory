@@ -163,6 +163,8 @@ dependencies = [
  "ld-game-engine",
  "log",
  "nalgebra",
+ "serde",
+ "serde_json",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "wasm-logger",

@@ -1,3 +1,6 @@
+use serde::de::Error;
+use serde::Deserializer;
+
 use ld_game_engine::{util::Mut, V2};
 
 #[derive(Debug, Copy, Clone)]
@@ -73,15 +76,27 @@ impl Constraint {
 pub struct Rope {
     pub root: V2,
     pub constraints: Vec<Constraint>,
-    pub gravity: V2,
+}
+
+impl<'de> serde::Deserialize<'de> for Rope {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let result = Vec::<V2>::deserialize(deserializer)?;
+        if result.is_empty() {
+            return Err(D::Error::custom("Empty rope"));
+        }
+        let mut rope = Rope::new(result[0]);
+        for point in result.iter().skip(1).copied() {
+            rope.add(point);
+        }
+        Ok(rope)
+    }
 }
 
 impl Rope {
-    pub fn new(root: V2, gravity: V2) -> Rope {
+    pub fn new(root: V2) -> Rope {
         Rope {
             root,
             constraints: Vec::new(),
-            gravity,
         }
     }
 
@@ -115,9 +130,9 @@ impl Rope {
         }
     }
 
-    pub fn simulate(&mut self, delta_time: f64, num_iterations: u32) {
+    pub fn simulate(&mut self, gravity: V2, delta_time: f64, num_iterations: u32) {
         for constraint in &mut self.constraints {
-            let accel = self.gravity * (delta_time * delta_time);
+            let accel = gravity * (delta_time * delta_time);
             constraint.point_a.borrow_mut().step(accel);
             constraint.point_b.borrow_mut().step(accel);
         }
@@ -129,7 +144,7 @@ impl Rope {
 
 impl Clone for Rope {
     fn clone(&self) -> Self {
-        let mut new_rope = Rope::new(self.root, self.gravity);
+        let mut new_rope = Rope::new(self.root);
         for constraint in &self.constraints {
             new_rope.add(constraint.point_b.borrow().pos);
         }

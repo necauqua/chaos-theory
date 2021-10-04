@@ -5,11 +5,11 @@ module.exports = {
     entry: './bootstrap.js',
     output: {
         path: path.resolve(__dirname, 'dist'),
-        filename: 'bootstrap.js',
+        filename: 'bootstrap.js'
     },
     mode: 'development',
     plugins: [new CopyWebpackPlugin({
-        patterns: ['index.html']
+        patterns: ['index.html', 'assets/**']
     })],
     resolve: {
         fallback: {
