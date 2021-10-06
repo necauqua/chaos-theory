@@ -51,7 +51,7 @@ pub struct MainGame {
     prev_trails: VecDeque<VecDeque<V2>>,
     trail: VecDeque<V2>,
     creating: Option<V2>,
-    touched_targets: Box<[u8]>,
+    touched_targets: Box<[usize]>,
     touching_target: Option<usize>,
 
     next_level_button: Button,
@@ -729,11 +729,7 @@ impl GameState<ChaosTheory> for MainGame {
             || matches!(self.win_status, WinStatus::NotYet)
             && self.touched_targets.iter().all(|&i| i > 0)
         {
-            let sum = self
-                .touched_targets
-                .iter()
-                .map(|&b| b as usize)
-                .sum::<usize>();
+            let sum = self.touched_targets.iter().sum::<usize>();
             self.win_status = WinStatus::Won {
                 bonuses: sum - self.touched_targets.len(),
             };
